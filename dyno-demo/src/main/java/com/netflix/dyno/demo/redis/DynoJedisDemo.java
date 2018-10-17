@@ -242,6 +242,12 @@ public class DynoJedisDemo {
 				System.out.println("Reading Key: " + i + ", Value: " + result.getResult() + " " + result.getNode());
 			}
 		}
+
+		try {
+			pipeline.close();
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
 	}
 
 	/**
@@ -682,6 +688,7 @@ public class DynoJedisDemo {
 				System.out.println("Exception while writing key " + key + " fields: " + fields);
 				throw e;
 			}
+			pipeline.close();
 
 			if (!HMSetResult.get().equals("OK")) {
 				System.out.println("Result mismatch for HMSet key: '" + key + "' fields: '" + fields + "' result: '"

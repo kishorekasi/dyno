@@ -127,7 +127,7 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
 
     @Override
     public void close() throws Exception {
-        this.shadowPipeline.close(); // close the shawdow pipeline synchronously
+        this.shadowPipeline.close(); // close the shadow pipeline synchronously
         super.close();
     }
 
