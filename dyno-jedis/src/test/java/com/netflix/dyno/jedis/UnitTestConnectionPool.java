@@ -18,6 +18,7 @@ package com.netflix.dyno.jedis;
 import com.netflix.dyno.connectionpool.*;
 import com.netflix.dyno.connectionpool.exception.DynoException;
 import com.netflix.dyno.connectionpool.impl.ConnectionContextImpl;
+import com.netflix.dyno.connectionpool.impl.ConnectionPoolImpl;
 import com.netflix.dyno.connectionpool.impl.OperationResultImpl;
 import com.netflix.dyno.connectionpool.TokenRackMapper;
 import org.mockito.Matchers;
@@ -36,7 +37,7 @@ import java.util.concurrent.TimeoutException;
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.when;
 
-public class UnitTestConnectionPool implements ConnectionPool<Jedis> {
+public class UnitTestConnectionPool extends ConnectionPoolImpl<Jedis> {
 
     Map<String, String> redis_data;
     @Mock
@@ -52,6 +53,7 @@ public class UnitTestConnectionPool implements ConnectionPool<Jedis> {
     private final OperationMonitor opMonitor;
 
     public UnitTestConnectionPool(ConnectionPoolConfiguration config, OperationMonitor opMonitor) {
+        super(null, config, null);
         MockitoAnnotations.initMocks(this);
 
         this.config = config;
@@ -229,10 +231,10 @@ public class UnitTestConnectionPool implements ConnectionPool<Jedis> {
         return config;
     }
 
-    @Override
-    public HealthTracker<Jedis> getHealthTracker() {
-        return null;
-    }
+//    @Override
+//    public HealthTracker<Jedis> getHealthTracker() {
+//        return null;
+//    }
 
     @Override
     public boolean isIdle() {

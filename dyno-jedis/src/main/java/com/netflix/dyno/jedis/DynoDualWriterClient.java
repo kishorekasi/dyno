@@ -15,6 +15,8 @@
  */
 package com.netflix.dyno.jedis;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.netflix.dyno.connectionpool.Connection;
 import com.netflix.dyno.connectionpool.ConnectionPool;
 import com.netflix.dyno.connectionpool.ConnectionPoolMonitor;
 import com.netflix.dyno.connectionpool.OperationResult;
@@ -86,6 +88,7 @@ public class DynoDualWriterClient extends DynoJedisClient {
         return dial;
     }
 
+    @VisibleForTesting
     private DynoJedisPipelineMonitor checkAndInitPipelineMonitor() {
         if (pipelineMonitor.get() != null) {
             return pipelineMonitor.get();
@@ -106,7 +109,7 @@ public class DynoDualWriterClient extends DynoJedisClient {
                 shadowClient.getConnPool(), dial);
     }
 
-    private <R> Future<OperationResult<R>> writeAsync(final String key, Callable<OperationResult<R>> func) {
+    <R> Future<OperationResult<R>> writeAsync(final String key, Callable<OperationResult<R>> func) {
         if (sendShadowRequest(key)) {
             try {
                 return executor.submit(func);
@@ -124,7 +127,7 @@ public class DynoDualWriterClient extends DynoJedisClient {
     /**
      *  writeAsync() for binary commands
      */
-    private <R> Future<OperationResult<R>> writeAsync(final byte[] key, Callable<OperationResult<R>> func) {
+    <R> Future<OperationResult<R>> writeAsync(final byte[] key, Callable<OperationResult<R>> func) {
         if (sendShadowRequest(key)) {
             try {
                 return executor.submit(func);
@@ -149,17 +152,17 @@ public class DynoDualWriterClient extends DynoJedisClient {
      * The idle check is necessary since there may be active host pools however the shadow client may not be able to
      * connect to them, for example, if security groups are not configured properly.
      */
-    private boolean sendShadowRequest(String key) {
-        return  this.getConnPool().getConfiguration().isDualWriteEnabled() &&
-                !this.getConnPool().isIdle() &&
-                this.getConnPool().getActivePools().size() > 0 &&
+    boolean sendShadowRequest(String key) {
+        return  this.connPool.getConfiguration().isDualWriteEnabled() &&
+                !this.connPool.isIdle() &&
+                this.connPool.getActivePools().size() > 0 &&
                 dial.isInRange(key);
     }
     
-    private boolean sendShadowRequest(byte[] key) {
-        return  this.getConnPool().getConfiguration().isDualWriteEnabled() &&
-                !this.getConnPool().isIdle() &&
-                this.getConnPool().getActivePools().size() > 0 &&
+    boolean sendShadowRequest(byte[] key) {
+        return  this.connPool.getConfiguration().isDualWriteEnabled() &&
+                !this.connPool.isIdle() &&
+                this.connPool.getActivePools().size() > 0 &&
                 dial.isInRange(key);
     }
 
@@ -178,7 +181,7 @@ public class DynoDualWriterClient extends DynoJedisClient {
      * Default Dial implementation that presumes no knowledge of the key value
      * and simply uses a timestamp to determine inclusion/exclusion
      */
-    private static class TimestampDial implements Dial {
+    static class TimestampDial implements Dial {
 
         private final AtomicInteger range = new AtomicInteger(1);
 
@@ -200,8 +203,8 @@ public class DynoDualWriterClient extends DynoJedisClient {
         public void setRange(int range) {
             this.range.set(range);
         }
-    }   
-    
+    }
+
 
     //----------------------------- JEDIS COMMANDS --------------------------------------
 
@@ -284,6 +287,7 @@ public class DynoDualWriterClient extends DynoJedisClient {
             }
         });
 
+//        shadowClient.d_set(key, value);
         return DynoDualWriterClient.super.d_set(key, value);
     }
 

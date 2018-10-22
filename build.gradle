@@ -87,6 +87,7 @@ project(':dyno-jedis') {
         compile project(':dyno-core')
         compile project(':dyno-contrib')
         compile 'redis.clients:jedis:2.9.0'
+        testCompile 'org.powermock:powermock-mockito-release-full:1.5.4'
     }
 }
 

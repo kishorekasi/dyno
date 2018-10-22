@@ -1,7 +1,9 @@
 package com.netflix.dyno.jedis;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.netflix.dyno.connectionpool.ConnectionPoolMonitor;
 import com.netflix.dyno.connectionpool.impl.ConnectionPoolImpl;
+import com.netflix.dyno.jedis.DynoDualWriterClient.Dial;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.*;
 import redis.clients.jedis.params.geo.GeoRadiusParam;
@@ -27,7 +29,7 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
     private static ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     private final ConnectionPoolImpl<Jedis> connPool;
     private final DynoJedisPipeline shadowPipeline;
-    private final DynoDualWriterClient.Dial dial;
+    private final Dial dial;
 
     DynoDualWriterPipeline(String appName,
                            ConnectionPoolImpl<Jedis> pool,
@@ -51,9 +53,17 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
     }
 
     /*
+     * Used for unit testing ONLY
+     */
+    @VisibleForTesting
+    final DynoJedisPipeline getPrimaryPipeline() { return (DynoJedisPipeline) this; }
+    @VisibleForTesting
+    final DynoJedisPipeline getShadowPipeline() { return this.shadowPipeline; }
+
+    /*
      * For async scheduling of Jedis commands on shadow clusters.
      */
-    private <R> Future<Response<R>> writeAsync(final String key, Callable<Response<R>> func) {
+    <R> Future<Response<R>> writeAsync(final String key, Callable<Response<R>> func) {
         if (canSendShadowRequest(key)) {
             return executor.submit(func);
         }
@@ -63,7 +73,7 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
     /*
      *  For async scheduling of Jedis binary commands on shadow clusters.
      */
-    private <R> Future<Response<R>> writeAsync(final byte[] key, Callable<Response<R>> func) {
+    <R> Future<Response<R>> writeAsync(final byte[] key, Callable<Response<R>> func) {
         if (canSendShadowRequest(key)) {
             return executor.submit(func);
         }
@@ -87,14 +97,14 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
      * The idle check is necessary since there may be active host pools however the shadow client may not be able to
      * connect to them, for example, if security groups are not configured properly.
      */
-    private boolean canSendShadowRequest(String key) {
+    boolean canSendShadowRequest(String key) {
         return this.getConnPool().getConfiguration().isDualWriteEnabled() &&
                 !this.getConnPool().isIdle() &&
                 this.getConnPool().getActivePools().size() > 0 &&
                 dial.isInRange(key);
     }
 
-    private boolean canSendShadowRequest(byte[] key) {
+    boolean canSendShadowRequest(byte[] key) {
         return this.getConnPool().getConfiguration().isDualWriteEnabled() &&
                 !this.getConnPool().isIdle() &&
                 this.getConnPool().getActivePools().size() > 0 &&
@@ -129,6 +139,10 @@ public class DynoDualWriterPipeline extends DynoJedisPipeline {
     public void close() throws Exception {
         this.shadowPipeline.close(); // close the shadow pipeline synchronously
         super.close();
+    }
+
+    public Dial getDial() {
+        return this.dial;
     }
 
     //-------------------------- JEDIS PIPELINE COMMANDS ----------------------------
